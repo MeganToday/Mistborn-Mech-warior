@@ -122,7 +122,7 @@
   <h2>MECH WARRIOR</h2>
   <p>The Final Empire grows complacent. Tonight you slip into House Venture and
      steal back what was taken. Burn your metals. Stay out of the lantern light.</p>
-  <p style="color:#6a6557;">Move: <b>WASD</b> &nbsp; Look: <b>Mouse</b> &nbsp; Burn metal: <b>1</b> <b>2</b> <b>3</b> <b>4</b></p>
+  <p style="color:#6a6557;">Forward/Back: <b>W</b> / <b>S</b> &nbsp; Turn: <b>A</b> / <b>D</b> &nbsp; Look: <b>Mouse</b> &nbsp; Burn metal: <b>1</b> <b>2</b> <b>3</b> <b>4</b></p>
   <p style="color:#6a6557; font-size:12px;">Click the game to capture the mouse. Press <b>Esc</b> to release it.</p>
   <button id="start-btn">BEGIN THE HEIST</button>
 </div>
@@ -660,16 +660,15 @@ function updatePlayer(dt) {
     }
     collideWithWalls(player.position);
   } else {
-    // Camera-relative movement: forward = direction camera faces (horizontal)
+    // A/D turn the body (and camera), W/S move forward/back in facing direction
+    const TURN_SPEED = 2.6; // radians/sec
+    if (keys.KeyA) { yaw += TURN_SPEED * dt; state.movedYet = true; }
+    if (keys.KeyD) { yaw -= TURN_SPEED * dt; state.movedYet = true; }
     const forwardX = -Math.sin(yaw);
     const forwardZ = -Math.cos(yaw);
-    const rightX   =  Math.cos(yaw);
-    const rightZ   = -Math.sin(yaw);
     moveDir.set(0,0,0);
     if (keys.KeyW) { moveDir.x += forwardX; moveDir.z += forwardZ; }
     if (keys.KeyS) { moveDir.x -= forwardX; moveDir.z -= forwardZ; }
-    if (keys.KeyD) { moveDir.x += rightX;   moveDir.z += rightZ;   }
-    if (keys.KeyA) { moveDir.x -= rightX;   moveDir.z -= rightZ;   }
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
       const speed = state.burning.pewter ? 9 : 4.5;

@@ -122,7 +122,8 @@
   <h2>MECH WARRIOR</h2>
   <p>The Final Empire grows complacent. Tonight you slip into House Venture and
      steal back what was taken. Burn your metals. Stay out of the lantern light.</p>
-  <p style="color:#6a6557;">Move: <b>WASD</b> &nbsp; Burn metal: <b>1</b> <b>2</b> <b>3</b> <b>4</b></p>
+  <p style="color:#6a6557;">Move: <b>WASD</b> &nbsp; Look: <b>Mouse</b> &nbsp; Burn metal: <b>1</b> <b>2</b> <b>3</b> <b>4</b></p>
+  <p style="color:#6a6557; font-size:12px;">Click the game to capture the mouse. Press <b>Esc</b> to release it.</p>
   <button id="start-btn">BEGIN THE HEIST</button>
 </div>
 
@@ -491,6 +492,24 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 
+// ---------- MOUSE LOOK (pointer lock) ----------
+let yaw = 0;         // facing -Z initially (toward the vault)
+let pitch = -0.15;   // slight downward tilt
+const PITCH_MIN = -0.9, PITCH_MAX = 0.5;
+const MOUSE_SENS = 0.0025;
+
+const canvas = renderer.domElement;
+canvas.addEventListener('click', () => {
+  if (state.started && !state.ended) canvas.requestPointerLock();
+});
+addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement !== canvas) return;
+  yaw   -= e.movementX * MOUSE_SENS;
+  pitch -= e.movementY * MOUSE_SENS;
+  if (pitch < PITCH_MIN) pitch = PITCH_MIN;
+  if (pitch > PITCH_MAX) pitch = PITCH_MAX;
+});
+
 function toggleMetal(id) {
   const m = METALS.find(x => x.id === id);
   if (!m || !m.active) return;
@@ -625,7 +644,6 @@ function lineHitsWall(a, b) {
 
 // ---------- PLAYER UPDATE ----------
 const moveDir = new THREE.Vector3();
-let facingYaw = 0;
 function updatePlayer(dt) {
   if (pullState.active) {
     const dir = new THREE.Vector3().subVectors(pullState.target, player.position);
@@ -637,47 +655,50 @@ function updatePlayer(dt) {
       const pullSpeed = 18;
       player.position.x += dir.x * pullSpeed * dt;
       player.position.z += dir.z * pullSpeed * dt;
-      facingYaw = Math.atan2(dir.x, dir.z);
       pullState.t += dt;
       if (pullState.t > 1.5) pullState.active = false;
     }
     collideWithWalls(player.position);
   } else {
+    // Camera-relative movement: forward = direction camera faces (horizontal)
+    const forwardX = -Math.sin(yaw);
+    const forwardZ = -Math.cos(yaw);
+    const rightX   =  Math.cos(yaw);
+    const rightZ   = -Math.sin(yaw);
     moveDir.set(0,0,0);
-    if (keys.KeyW) moveDir.z -= 1;
-    if (keys.KeyS) moveDir.z += 1;
-    if (keys.KeyA) moveDir.x -= 1;
-    if (keys.KeyD) moveDir.x += 1;
+    if (keys.KeyW) { moveDir.x += forwardX; moveDir.z += forwardZ; }
+    if (keys.KeyS) { moveDir.x -= forwardX; moveDir.z -= forwardZ; }
+    if (keys.KeyD) { moveDir.x += rightX;   moveDir.z += rightZ;   }
+    if (keys.KeyA) { moveDir.x -= rightX;   moveDir.z -= rightZ;   }
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
       const speed = state.burning.pewter ? 9 : 4.5;
       player.position.x += moveDir.x * speed * dt;
       player.position.z += moveDir.z * speed * dt;
-      facingYaw = Math.atan2(moveDir.x, moveDir.z);
       state.movedYet = true;
       collideWithWalls(player.position);
     }
   }
-  // smooth rotate to facing
-  let diff = facingYaw - player.rotation.y;
-  while (diff > Math.PI) diff -= Math.PI*2;
-  while (diff < -Math.PI) diff += Math.PI*2;
-  player.rotation.y += diff * Math.min(1, dt*10);
+  // Player faces the direction the camera is looking
+  player.rotation.y = yaw;
 }
 
 // ---------- CAMERA ----------
-const camOffset = new THREE.Vector3(0, 3.2, 6.5);
+const CAM_DIST = 5.5;
+const CAM_HEAD = 1.5; // look-at height on player
 function updateCamera(dt) {
-  const yaw = player.rotation.y;
-  const ox = Math.sin(yaw) * camOffset.z;
-  const oz = Math.cos(yaw) * camOffset.z;
+  // Spherical offset behind the player based on yaw/pitch
+  const horiz = Math.cos(pitch) * CAM_DIST;
+  const ox =  Math.sin(yaw) * horiz;
+  const oz =  Math.cos(yaw) * horiz;
+  const oy = -Math.sin(pitch) * CAM_DIST + 1.5;
   const targetPos = new THREE.Vector3(
     player.position.x + ox,
-    player.position.y + camOffset.y,
+    player.position.y + oy,
     player.position.z + oz
   );
-  camera.position.lerp(targetPos, Math.min(1, dt*5));
-  camera.lookAt(player.position.x, player.position.y + 1.3, player.position.z);
+  camera.position.lerp(targetPos, Math.min(1, dt*12));
+  camera.lookAt(player.position.x, player.position.y + CAM_HEAD, player.position.z);
 }
 
 // ---------- COINS UPDATE ----------
@@ -823,9 +844,16 @@ function loop() {
   renderer.render(scene, camera);
 }
 
-// Position camera initially behind player
-camera.position.set(player.position.x, player.position.y + 3.2, player.position.z + 6.5);
-camera.lookAt(player.position.x, player.position.y + 1.3, player.position.z);
+// Position camera initially behind player (matches updateCamera math at yaw=0, pitch=-0.15)
+{
+  const horiz = Math.cos(pitch) * CAM_DIST;
+  camera.position.set(
+    player.position.x + Math.sin(yaw) * horiz,
+    player.position.y + (-Math.sin(pitch) * CAM_DIST + 1.5),
+    player.position.z + Math.cos(yaw) * horiz
+  );
+  camera.lookAt(player.position.x, player.position.y + CAM_HEAD, player.position.z);
+}
 
 loop();
 

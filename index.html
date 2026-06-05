@@ -206,8 +206,8 @@ function setObjective(text) { objEl.textContent = text; }
 // ---------- THREE.JS SETUP ----------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x06070a);
-const baseFog = 28;
-scene.fog = new THREE.Fog(0x06070a, 6, baseFog);
+const baseFog = 45;
+scene.fog = new THREE.Fog(0x06070a, 12, baseFog);
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 200);
 const renderer = new THREE.WebGLRenderer({ antialias:true });
@@ -224,9 +224,9 @@ addEventListener('resize', () => {
 });
 
 // Lights
-const ambient = new THREE.AmbientLight(0x404858, 0.55);
+const ambient = new THREE.AmbientLight(0x4a5468, 0.75);
 scene.add(ambient);
-const moon = new THREE.DirectionalLight(0xb0c0d8, 0.4);
+const moon = new THREE.DirectionalLight(0xb0c0d8, 0.55);
 moon.position.set(-8, 18, -10);
 moon.castShadow = true;
 moon.shadow.mapSize.set(1024, 1024);
@@ -795,7 +795,7 @@ function loop() {
   last = now;
 
   // Tin: extend fog
-  const targetFog = state.burning.tin ? 55 : baseFog;
+  const targetFog = state.burning.tin ? 75 : baseFog;
   scene.fog.far += (targetFog - scene.fog.far) * Math.min(1, dt*3);
 
   // Treasure spin

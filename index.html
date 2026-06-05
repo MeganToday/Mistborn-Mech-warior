@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Mistborn: Mech Warrior — The Heist (Tutorial)</title>
+<style>
+  :root {
+    --iron:   #88a0bb;
+    --steel:  #d8d8df;
+    --tin:    #e6eef0;
+    --pewter: #a8aeb3;
+    --zinc:   #7d8a99;
+    --brass:  #c9a548;
+    --copper: #b87333;
+    --bronze: #9b6a3f;
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #06070a; color: #ddd;
+    font-family: Georgia, 'Times New Roman', serif; }
+  canvas { display: block; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+
+  #objective {
+    position: absolute; top: 14px; right: 18px;
+    background: rgba(15,12,8,0.78); border-left: 3px solid var(--brass);
+    padding: 8px 16px; font-size: 14px; letter-spacing: 0.5px;
+    max-width: 280px;
+  }
+  #objective b { color: var(--brass); }
+
+  #tutorial {
+    position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+    background: rgba(15,12,8,0.92); border: 1px solid #6a5a3a;
+    padding: 14px 22px; max-width: 560px; text-align: center;
+    font-size: 15px; line-height: 1.45;
+    box-shadow: 0 0 24px rgba(0,0,0,0.6);
+  }
+  #tutorial kbd {
+    display: inline-block; background: #2a2418; border: 1px solid #7a6a4a;
+    border-radius: 3px; padding: 1px 6px; font-family: 'Courier New', monospace;
+    font-size: 13px; color: #f5e6c4;
+  }
+
+  #metals {
+    position: absolute; bottom: 18px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 10px;
+    padding: 6px 12px;
+  }
+  .metal {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #2a2a2e, #0a0a0c);
+    border: 2px solid #2c2c30;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; opacity: 0.45;
+  }
+  .metal.active { opacity: 1; border-color: #555; }
+  .metal.active .swirl {
+    background: radial-gradient(circle at 35% 35%, var(--c), transparent 70%);
+  }
+  .metal.burning { border-color: #ffce6b; box-shadow: 0 0 18px var(--c), 0 0 32px rgba(255,180,80,0.6); }
+  .metal.burning .swirl {
+    background: radial-gradient(circle at 35% 35%, #fff5d6, var(--c) 50%, transparent 80%);
+    animation: pulse 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { from { opacity: 0.85; } to { opacity: 1; transform: scale(1.05); } }
+  .metal .swirl {
+    position: absolute; inset: 6px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #444, transparent 70%);
+  }
+  .metal .name {
+    position: relative; font-size: 10px; color: #f5e6c4;
+    text-shadow: 1px 1px 2px #000; margin-top: 36px;
+  }
+  .metal .key {
+    position: absolute; top: -7px; right: -7px;
+    background: #1a1610; border: 1px solid #7a6a4a; border-radius: 4px;
+    padding: 0 5px; font-size: 11px; color: #f5e6c4; font-family: monospace;
+  }
+
+  #vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
+  }
+
+  .end-screen {
+    position: fixed; inset: 0; background: rgba(2,3,5,0.92);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+  }
+  .end-screen.show { display: flex; }
+  .end-screen h1 { font-size: 48px; margin: 0 0 10px; letter-spacing: 4px; }
+  .end-screen p { color: #b8b0a0; max-width: 460px; }
+  #win-screen h1 { color: var(--brass); text-shadow: 0 0 24px rgba(201,165,72,0.6); }
+  #lose-screen h1 { color: #d04848; text-shadow: 0 0 24px rgba(208,72,72,0.6); }
+  .end-screen button {
+    margin-top: 18px; font-family: inherit; font-size: 15px;
+    padding: 10px 24px; background: #1a1610; color: #f5e6c4;
+    border: 1px solid #7a6a4a; cursor: pointer; letter-spacing: 1px;
+  }
+  .end-screen button:hover { background: #2a2418; }
+
+  #title {
+    position: fixed; inset: 0; background: #06070a;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; z-index: 10;
+  }
+  #title h1 { font-size: 54px; margin: 0; color: #f5e6c4; letter-spacing: 6px; }
+  #title h2 { font-size: 18px; margin: 8px 0 0; color: var(--brass); letter-spacing: 4px; }
+  #title p  { color: #9b937f; max-width: 520px; margin-top: 22px; line-height: 1.5; }
+  #title button {
+    margin-top: 24px; font-family: inherit; font-size: 16px;
+    padding: 12px 32px; background: #1a1610; color: #f5e6c4;
+    border: 1px solid #7a6a4a; cursor: pointer; letter-spacing: 2px;
+  }
+  #title button:hover { background: #2a2418; }
+</style>
+</head>
+<body>
+
+<div id="title">
+  <h1>MISTBORN</h1>
+  <h2>MECH WARRIOR</h2>
+  <p>The Final Empire grows complacent. Tonight you slip into House Venture and
+     steal back what was taken. Burn your metals. Stay out of the lantern light.</p>
+  <p style="color:#6a6557;">Move: <b>WASD</b> &nbsp; Burn metal: <b>1</b> <b>2</b> <b>3</b> <b>4</b></p>
+  <button id="start-btn">BEGIN THE HEIST</button>
+</div>
+
+<div id="hud">
+  <div id="objective"><b>Objective:</b> <span id="obj-text">Learn the metals.</span></div>
+  <div id="tutorial">Welcome, Mistborn. Use <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to move.</div>
+  <div id="metals"></div>
+</div>
+<div id="vignette"></div>
+
+<div id="win-screen" class="end-screen">
+  <h1>HEIST COMPLETE</h1>
+  <p>You vanish into the mists with the prize. House Venture will not soon forget this night.</p>
+  <button onclick="location.reload()">Again</button>
+</div>
+<div id="lose-screen" class="end-screen">
+  <h1>CAUGHT</h1>
+  <p>The guards' lanterns find you. Steel Inquisitors are summoned.</p>
+  <button onclick="location.reload()">Try again</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ---------- METAL DEFINITIONS ----------
+const METALS = [
+  { id:'iron',   name:'Iron',   color:'#88a0bb', key:'1', active:true,  mode:'tap',
+    desc:'Pull yourself to nearby metal anchors.' },
+  { id:'steel',  name:'Steel',  color:'#d8d8df', key:'2', active:true,  mode:'tap',
+    desc:'Push metal objects (coins) away from you.' },
+  { id:'tin',    name:'Tin',    color:'#e6eef0', key:'3', active:true,  mode:'toggle',
+    desc:'Heighten your senses — pierce the mist.' },
+  { id:'pewter', name:'Pewter', color:'#a8aeb3', key:'4', active:true,  mode:'toggle',
+    desc:'Strengthen your body — sprint faster.' },
+  { id:'zinc',   name:'Zinc',   color:'#7d8a99', key:'5', active:false },
+  { id:'brass',  name:'Brass',  color:'#c9a548', key:'6', active:false },
+  { id:'copper', name:'Copper', color:'#b87333', key:'7', active:false },
+  { id:'bronze', name:'Bronze', color:'#9b6a3f', key:'8', active:false },
+];
+
+const state = {
+  started: false,
+  ended: false,
+  burning: { iron:false, steel:false, tin:false, pewter:false },
+  tutorialStep: 0,
+  movedYet: false,
+  pewterUsed: false,
+  tinUsed: false,
+  steelUsed: false,
+  ironUsed: false,
+};
+
+// ---------- HUD ----------
+const metalsEl = document.getElementById('metals');
+for (const m of METALS) {
+  const el = document.createElement('div');
+  el.className = 'metal' + (m.active ? ' active' : '');
+  el.id = 'metal-' + m.id;
+  el.style.setProperty('--c', m.color);
+  el.innerHTML = `<div class="swirl"></div><div class="name">${m.name}</div><div class="key">${m.key}</div>`;
+  metalsEl.appendChild(el);
+}
+
+function updateHUD() {
+  for (const m of METALS) {
+    if (!m.active) continue;
+    const el = document.getElementById('metal-' + m.id);
+    el.classList.toggle('burning', !!state.burning[m.id]);
+  }
+}
+
+const tutorialEl = document.getElementById('tutorial');
+const objEl = document.getElementById('obj-text');
+function setTutorial(html) { tutorialEl.innerHTML = html; }
+function setObjective(text) { objEl.textContent = text; }
+
+// ---------- THREE.JS SETUP ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06070a);
+const baseFog = 28;
+scene.fog = new THREE.Fog(0x06070a, 6, baseFog);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Lights
+const ambient = new THREE.AmbientLight(0x404858, 0.55);
+scene.add(ambient);
+const moon = new THREE.DirectionalLight(0xb0c0d8, 0.4);
+moon.position.set(-8, 18, -10);
+moon.castShadow = true;
+moon.shadow.mapSize.set(1024, 1024);
+moon.shadow.camera.left = -30; moon.shadow.camera.right = 30;
+moon.shadow.camera.top = 30;  moon.shadow.camera.bottom = -30;
+scene.add(moon);
+
+// Floor: long mansion hall
+const FLOOR_W = 28, FLOOR_L = 80;
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(FLOOR_W, FLOOR_L),
+  new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.9 })
+);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Checkerboard tile pattern on floor
+const tileGroup = new THREE.Group();
+const tileMat = new THREE.MeshStandardMaterial({ color: 0x1a140e, roughness: 1 });
+for (let x = -FLOOR_W/2 + 1; x < FLOOR_W/2; x += 4) {
+  for (let z = -FLOOR_L/2 + 1; z < FLOOR_L/2; z += 4) {
+    if ((Math.floor((x+FLOOR_W/2)/2) + Math.floor((z+FLOOR_L/2)/2)) % 2 === 0) continue;
+    const t = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), tileMat);
+    t.rotation.x = -Math.PI/2;
+    t.position.set(x, 0.01, z);
+    t.receiveShadow = true;
+    tileGroup.add(t);
+  }
+}
+scene.add(tileGroup);
+
+// Walls
+const walls = [];
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a2e22, roughness: 0.85 });
+function makeWall(x, z, w, d, h=4) {
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+  wall.position.set(x, h/2, z);
+  wall.castShadow = true;
+  wall.receiveShadow = true;
+  scene.add(wall);
+  walls.push({ mesh: wall, minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
+  return wall;
+}
+// Outer walls
+makeWall(-FLOOR_W/2, 0, 0.5, FLOOR_L);
+makeWall( FLOOR_W/2, 0, 0.5, FLOOR_L);
+makeWall(0,  FLOOR_L/2, FLOOR_W, 0.5);
+makeWall(0, -FLOOR_L/2, FLOOR_W, 0.5);
+
+// Interior dividers — create a few rooms with passages
+// Room divider 1 (player starts south of this), gap on left
+makeWall( 6, 24, 16, 0.4);
+makeWall(-12, 24, 4, 0.4);
+// Room divider 2, gap on right
+makeWall(-6, 4, 16, 0.4);
+makeWall( 12, 4, 4, 0.4);
+// Room divider 3 (near vault), gap in middle
+makeWall(-9, -16, 10, 0.4);
+makeWall( 9, -16, 10, 0.4);
+
+// Decorative pillars
+const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.7 });
+function makePillar(x, z) {
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 4, 12), pillarMat);
+  p.position.set(x, 2, z);
+  p.castShadow = true;
+  scene.add(p);
+  walls.push({ mesh: p, minX: x-0.6, maxX: x+0.6, minZ: z-0.6, maxZ: z+0.6, round: true });
+}
+for (const [x, z] of [[-8, 14],[8, 14],[-8, -6],[8, -6],[-8, -24],[8, -24]]) makePillar(x, z);
+
+// Lanterns (just for atmosphere — small point lights)
+function makeLantern(x, z) {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2, 6),
+    new THREE.MeshStandardMaterial({ color: 0x222 }));
+  post.position.y = 1;
+  g.add(post);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffaa44, emissiveIntensity: 1 }));
+  bulb.position.y = 2;
+  g.add(bulb);
+  const light = new THREE.PointLight(0xffaa66, 1.2, 10, 2);
+  light.position.y = 2;
+  g.add(light);
+  g.position.set(x, 0, z);
+  scene.add(g);
+}
+for (const [x,z] of [[-10, 18],[10, 18],[-10, 0],[10, 0],[-10, -20],[10, -20],[0, -32]]) makeLantern(x, z);
+
+// ---------- PLAYER ----------
+const player = new THREE.Group();
+// Mistcloak/armor look
+const torso = new THREE.Mesh(
+  new THREE.BoxGeometry(0.7, 0.9, 0.45),
+  new THREE.MeshStandardMaterial({ color: 0x14161c, metalness: 0.5, roughness: 0.4 })
+);
+torso.position.y = 1.1;
+torso.castShadow = true;
+player.add(torso);
+const head = new THREE.Mesh(
+  new THREE.SphereGeometry(0.22, 12, 12),
+  new THREE.MeshStandardMaterial({ color: 0xd0b48a })
+);
+head.position.y = 1.78;
+head.castShadow = true;
+player.add(head);
+// Cloak strips trailing behind
+for (let i = 0; i < 6; i++) {
+  const strip = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.14, 1.0),
+    new THREE.MeshStandardMaterial({ color: 0x0a0c12, side: THREE.DoubleSide })
+  );
+  strip.position.set(-0.3 + i*0.12, 0.85, 0.25);
+  strip.castShadow = true;
+  player.add(strip);
+}
+// Legs
+for (const sx of [-0.18, 0.18]) {
+  const leg = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.7, 0.22),
+    new THREE.MeshStandardMaterial({ color: 0x0e1015 })
+  );
+  leg.position.set(sx, 0.35, 0);
+  leg.castShadow = true;
+  player.add(leg);
+}
+player.position.set(0, 0, 34);
+scene.add(player);
+
+// ---------- IRON ANCHORS (steel pillars to pull to) ----------
+const anchors = [];
+function makeAnchor(x, z) {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.22, 1.6, 10),
+    new THREE.MeshStandardMaterial({ color: 0x9aa2ad, metalness: 0.85, roughness: 0.2,
+      emissive: 0x223040, emissiveIntensity: 0.4 })
+  );
+  post.position.y = 0.8;
+  post.castShadow = true;
+  g.add(post);
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xcfd6df, metalness: 0.9, roughness: 0.15,
+      emissive: 0x4477aa, emissiveIntensity: 0.5 })
+  );
+  cap.position.y = 1.7;
+  g.add(cap);
+  g.position.set(x, 0, z);
+  scene.add(g);
+  anchors.push({ group: g, pos: g.position.clone() });
+}
+makeAnchor(-10, -8);
+makeAnchor( 10, -28);
+
+// ---------- COINS (pushable with steel) ----------
+const coins = [];
+function makeCoin(x, z) {
+  const c = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.16, 0.04, 16),
+    new THREE.MeshStandardMaterial({ color: 0xc9a548, metalness: 0.9, roughness: 0.25,
+      emissive: 0x665522, emissiveIntensity: 0.35 })
+  );
+  c.position.set(x, 0.04, z);
+  c.castShadow = true;
+  scene.add(c);
+  coins.push({ mesh: c, vx: 0, vz: 0 });
+}
+makeCoin(2, 18); makeCoin(-2, 18); makeCoin(4, 16);
+makeCoin(-4, -2); makeCoin(2, -4);
+makeCoin(0, -20); makeCoin(-3, -22);
+
+// ---------- TREASURE (objective) ----------
+const treasure = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(0.6, 0),
+  new THREE.MeshStandardMaterial({ color: 0xffd166, metalness: 0.9, roughness: 0.2,
+    emissive: 0xffaa33, emissiveIntensity: 0.9 })
+);
+treasure.position.set(0, 1.2, -36);
+scene.add(treasure);
+const tLight = new THREE.PointLight(0xffd166, 2.5, 14, 2);
+tLight.position.set(0, 2, -36);
+scene.add(tLight);
+
+// ---------- GUARDS ----------
+const guards = [];
+function makeGuard(x, z, path) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 1.0, 0.45),
+    new THREE.MeshStandardMaterial({ color: 0x5a1818 })
+  );
+  body.position.y = 1.15;
+  body.castShadow = true;
+  g.add(body);
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 10, 10),
+    new THREE.MeshStandardMaterial({ color: 0xb89878 })
+  );
+  head.position.y = 1.85;
+  g.add(head);
+  // Vision cone
+  const VR = 7, VA = Math.PI/4; // range, half-angle
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(VR * Math.tan(VA), VR, 24, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xff6644, transparent: true, opacity: 0.13,
+      side: THREE.DoubleSide, depthWrite: false })
+  );
+  cone.rotation.x = Math.PI/2;
+  cone.position.z = -VR/2;
+  cone.position.y = 1.0;
+  g.add(cone);
+  // Lantern light at front
+  const lantern = new THREE.PointLight(0xffaa55, 1.2, 8, 1.5);
+  lantern.position.set(0, 1.2, -1);
+  g.add(lantern);
+
+  g.position.set(x, 0, z);
+  g.userData = {
+    path, idx: 0, t: 0,
+    visionRange: VR, visionHalfAngle: VA,
+    speed: 1.6, lookYaw: 0
+  };
+  scene.add(g);
+  guards.push(g);
+}
+// Patrol paths (waypoints between dividers)
+makeGuard(-6, 14, [ [-8, 14], [8, 14] ]);
+makeGuard( 6, -6, [ [8, -6], [-8, -6] ]);
+makeGuard(0, -26, [ [-6, -26], [6, -26] ]);
+
+// ---------- ASH PARTICLES ----------
+const ASH_COUNT = 220;
+const ashGeo = new THREE.BufferGeometry();
+const ashPos = new Float32Array(ASH_COUNT * 3);
+const ashVel = new Float32Array(ASH_COUNT * 3);
+for (let i = 0; i < ASH_COUNT; i++) {
+  ashPos[i*3]   = (Math.random()-0.5) * 60;
+  ashPos[i*3+1] = Math.random() * 18;
+  ashPos[i*3+2] = (Math.random()-0.5) * 90;
+  ashVel[i*3]   = (Math.random()-0.5) * 0.05;
+  ashVel[i*3+1] = -0.15 - Math.random()*0.1;
+  ashVel[i*3+2] = (Math.random()-0.5) * 0.05;
+}
+ashGeo.setAttribute('position', new THREE.BufferAttribute(ashPos, 3));
+const ash = new THREE.Points(ashGeo, new THREE.PointsMaterial({
+  color: 0x554a3a, size: 0.06, transparent: true, opacity: 0.7, depthWrite: false
+}));
+scene.add(ash);
+
+// ---------- INPUT ----------
+const keys = {};
+addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (!state.started || state.ended) return;
+  if (e.code === 'Digit1') toggleMetal('iron');
+  if (e.code === 'Digit2') toggleMetal('steel');
+  if (e.code === 'Digit3') toggleMetal('tin');
+  if (e.code === 'Digit4') toggleMetal('pewter');
+});
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+function toggleMetal(id) {
+  const m = METALS.find(x => x.id === id);
+  if (!m || !m.active) return;
+  if (m.mode === 'toggle') {
+    state.burning[id] = !state.burning[id];
+    if (id === 'pewter' && state.burning.pewter) state.pewterUsed = true;
+    if (id === 'tin' && state.burning.tin) state.tinUsed = true;
+    updateHUD();
+  } else if (m.mode === 'tap') {
+    // flare briefly
+    state.burning[id] = true;
+    updateHUD();
+    if (id === 'iron') doIronPull();
+    if (id === 'steel') doSteelPush();
+    setTimeout(() => { state.burning[id] = false; updateHUD(); }, 280);
+  }
+}
+
+// ---------- METAL EFFECTS ----------
+const pullState = { active: false, target: null, t: 0 };
+function doIronPull() {
+  let nearest = null, dist = Infinity;
+  for (const a of anchors) {
+    const d = a.pos.distanceTo(player.position);
+    if (d < 16 && d < dist) { dist = d; nearest = a; }
+  }
+  if (!nearest) {
+    flashTutorial("No metal anchor in range. Look for glowing posts.");
+    return;
+  }
+  state.ironUsed = true;
+  pullState.active = true;
+  pullState.target = nearest.pos.clone();
+  pullState.t = 0;
+}
+
+function doSteelPush() {
+  let pushedAny = false;
+  for (const c of coins) {
+    const dx = c.mesh.position.x - player.position.x;
+    const dz = c.mesh.position.z - player.position.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 6) {
+      const f = (1 - d/6) * 22;
+      c.vx += (dx / (d||1)) * f;
+      c.vz += (dz / (d||1)) * f;
+      pushedAny = true;
+    }
+  }
+  if (pushedAny) state.steelUsed = true;
+  else flashTutorial("No coins close enough to push. Get nearer.");
+}
+
+let flashTimer = 0;
+let flashSaved = null;
+function flashTutorial(text) {
+  flashSaved = tutorialEl.innerHTML;
+  setTutorial(text);
+  flashTimer = 2.2;
+}
+
+// ---------- COLLISIONS ----------
+function collideWithWalls(pos, radius=0.4) {
+  for (const w of walls) {
+    const cx = Math.max(w.minX, Math.min(pos.x, w.maxX));
+    const cz = Math.max(w.minZ, Math.min(pos.z, w.maxZ));
+    const dx = pos.x - cx, dz = pos.z - cz;
+    const d2 = dx*dx + dz*dz;
+    if (d2 < radius*radius) {
+      const d = Math.sqrt(d2) || 0.0001;
+      pos.x = cx + dx/d * radius;
+      pos.z = cz + dz/d * radius;
+    }
+  }
+  pos.x = Math.max(-FLOOR_W/2 + 0.6, Math.min(FLOOR_W/2 - 0.6, pos.x));
+  pos.z = Math.max(-FLOOR_L/2 + 0.6, Math.min(FLOOR_L/2 - 0.6, pos.z));
+}
+
+// ---------- GUARD AI & VISION CHECK ----------
+function updateGuards(dt) {
+  for (const g of guards) {
+    const ud = g.userData;
+    const tgt = ud.path[ud.idx];
+    const dx = tgt[0] - g.position.x;
+    const dz = tgt[1] - g.position.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.2) {
+      ud.idx = (ud.idx + 1) % ud.path.length;
+    } else {
+      g.position.x += (dx/d) * ud.speed * dt;
+      g.position.z += (dz/d) * ud.speed * dt;
+      const targetYaw = Math.atan2(dx, dz);
+      // smooth rotate
+      let diff = targetYaw - g.rotation.y;
+      while (diff > Math.PI) diff -= Math.PI*2;
+      while (diff < -Math.PI) diff += Math.PI*2;
+      g.rotation.y += diff * Math.min(1, dt*4);
+    }
+
+    // Vision check vs player
+    const px = player.position.x - g.position.x;
+    const pz = player.position.z - g.position.z;
+    const pd = Math.hypot(px, pz);
+    if (pd < ud.visionRange) {
+      const forwardX = Math.sin(g.rotation.y);
+      const forwardZ = Math.cos(g.rotation.y);
+      const dot = (px*forwardX + pz*forwardZ) / (pd || 1);
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+      if (angle < ud.visionHalfAngle) {
+        // check wall occlusion
+        if (!lineHitsWall(g.position, player.position)) {
+          loseGame();
+          return;
+        }
+      }
+    }
+  }
+}
+
+function lineHitsWall(a, b) {
+  const steps = 12;
+  for (let i = 1; i < steps; i++) {
+    const t = i/steps;
+    const x = a.x + (b.x-a.x)*t;
+    const z = a.z + (b.z-a.z)*t;
+    for (const w of walls) {
+      if (x > w.minX && x < w.maxX && z > w.minZ && z < w.maxZ) return true;
+    }
+  }
+  return false;
+}
+
+// ---------- PLAYER UPDATE ----------
+const moveDir = new THREE.Vector3();
+let facingYaw = 0;
+function updatePlayer(dt) {
+  if (pullState.active) {
+    const dir = new THREE.Vector3().subVectors(pullState.target, player.position);
+    const d = dir.length();
+    if (d < 0.6) {
+      pullState.active = false;
+    } else {
+      dir.normalize();
+      const pullSpeed = 18;
+      player.position.x += dir.x * pullSpeed * dt;
+      player.position.z += dir.z * pullSpeed * dt;
+      facingYaw = Math.atan2(dir.x, dir.z);
+      pullState.t += dt;
+      if (pullState.t > 1.5) pullState.active = false;
+    }
+    collideWithWalls(player.position);
+  } else {
+    moveDir.set(0,0,0);
+    if (keys.KeyW) moveDir.z -= 1;
+    if (keys.KeyS) moveDir.z += 1;
+    if (keys.KeyA) moveDir.x -= 1;
+    if (keys.KeyD) moveDir.x += 1;
+    if (moveDir.lengthSq() > 0) {
+      moveDir.normalize();
+      const speed = state.burning.pewter ? 9 : 4.5;
+      player.position.x += moveDir.x * speed * dt;
+      player.position.z += moveDir.z * speed * dt;
+      facingYaw = Math.atan2(moveDir.x, moveDir.z);
+      state.movedYet = true;
+      collideWithWalls(player.position);
+    }
+  }
+  // smooth rotate to facing
+  let diff = facingYaw - player.rotation.y;
+  while (diff > Math.PI) diff -= Math.PI*2;
+  while (diff < -Math.PI) diff += Math.PI*2;
+  player.rotation.y += diff * Math.min(1, dt*10);
+}
+
+// ---------- CAMERA ----------
+const camOffset = new THREE.Vector3(0, 3.2, 6.5);
+function updateCamera(dt) {
+  const yaw = player.rotation.y;
+  const ox = Math.sin(yaw) * camOffset.z;
+  const oz = Math.cos(yaw) * camOffset.z;
+  const targetPos = new THREE.Vector3(
+    player.position.x + ox,
+    player.position.y + camOffset.y,
+    player.position.z + oz
+  );
+  camera.position.lerp(targetPos, Math.min(1, dt*5));
+  camera.lookAt(player.position.x, player.position.y + 1.3, player.position.z);
+}
+
+// ---------- COINS UPDATE ----------
+function updateCoins(dt) {
+  for (const c of coins) {
+    if (Math.abs(c.vx) < 0.01 && Math.abs(c.vz) < 0.01) continue;
+    c.mesh.position.x += c.vx * dt;
+    c.mesh.position.z += c.vz * dt;
+    c.mesh.rotation.x += c.vx * dt * 2;
+    c.mesh.rotation.z += c.vz * dt * 2;
+    c.vx *= 0.92; c.vz *= 0.92;
+    if (Math.abs(c.vx) < 0.01) c.vx = 0;
+    if (Math.abs(c.vz) < 0.01) c.vz = 0;
+    // walls
+    for (const w of walls) {
+      if (c.mesh.position.x > w.minX && c.mesh.position.x < w.maxX &&
+          c.mesh.position.z > w.minZ && c.mesh.position.z < w.maxZ) {
+        c.vx = -c.vx*0.4; c.vz = -c.vz*0.4;
+        break;
+      }
+    }
+    // distract guards? (small radius alert)
+    // keep simple: skip
+  }
+}
+
+// ---------- ASH UPDATE ----------
+function updateAsh(dt) {
+  const pos = ashGeo.attributes.position.array;
+  for (let i = 0; i < ASH_COUNT; i++) {
+    pos[i*3]   += ashVel[i*3];
+    pos[i*3+1] += ashVel[i*3+1];
+    pos[i*3+2] += ashVel[i*3+2];
+    if (pos[i*3+1] < 0) {
+      pos[i*3]   = player.position.x + (Math.random()-0.5)*40;
+      pos[i*3+1] = 18 + Math.random()*6;
+      pos[i*3+2] = player.position.z + (Math.random()-0.5)*40;
+    }
+  }
+  ashGeo.attributes.position.needsUpdate = true;
+}
+
+// ---------- TUTORIAL FLOW ----------
+const TUTORIAL_STEPS = [
+  {
+    text: 'Welcome, Mistborn. Use <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to move through the manor.',
+    objective: 'Move through the manor.',
+    done: () => state.movedYet,
+  },
+  {
+    text: 'Burn <b>Pewter</b> — press <kbd>4</kbd> to toggle. Your body strengthens; you sprint faster.',
+    objective: 'Burn Pewter (4) to sprint.',
+    done: () => state.pewterUsed,
+  },
+  {
+    text: 'Burn <b>Tin</b> — press <kbd>3</kbd>. The mist parts and you see further.',
+    objective: 'Burn Tin (3) for sharper vision.',
+    done: () => state.tinUsed,
+  },
+  {
+    text: 'A guard patrols ahead. Avoid the red lantern cone. Use cover and timing — sneak past.',
+    objective: 'Slip past the first guard.',
+    done: () => player.position.z < 14,
+  },
+  {
+    text: 'Flare <b>Steel</b> — press <kbd>2</kbd> near the coins on the floor. Push them away to create a distraction.',
+    objective: 'Push a coin with Steel (2).',
+    done: () => state.steelUsed,
+  },
+  {
+    text: 'See the glowing metal posts? Flare <b>Iron</b> — press <kbd>1</kbd> near one to <i>pull yourself</i> to it.',
+    objective: 'Pull yourself with Iron (1).',
+    done: () => state.ironUsed,
+  },
+  {
+    text: 'The vault lies ahead. Reach the glowing prize and complete the heist.',
+    objective: 'Reach the treasure.',
+    done: () => player.position.distanceTo(treasure.position) < 1.6,
+  },
+];
+
+function advanceTutorial() {
+  if (state.tutorialStep >= TUTORIAL_STEPS.length) return;
+  const step = TUTORIAL_STEPS[state.tutorialStep];
+  if (step.done()) {
+    state.tutorialStep++;
+    if (state.tutorialStep >= TUTORIAL_STEPS.length) {
+      winGame();
+      return;
+    }
+    const next = TUTORIAL_STEPS[state.tutorialStep];
+    setTutorial(next.text);
+    setObjective(next.objective);
+  }
+}
+
+// ---------- END STATES ----------
+function loseGame() {
+  if (state.ended) return;
+  state.ended = true;
+  document.getElementById('lose-screen').classList.add('show');
+}
+function winGame() {
+  if (state.ended) return;
+  state.ended = true;
+  document.getElementById('win-screen').classList.add('show');
+}
+
+// ---------- MAIN LOOP ----------
+let last = performance.now();
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  let dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  // Tin: extend fog
+  const targetFog = state.burning.tin ? 55 : baseFog;
+  scene.fog.far += (targetFog - scene.fog.far) * Math.min(1, dt*3);
+
+  // Treasure spin
+  treasure.rotation.y += dt * 1.2;
+  treasure.rotation.x += dt * 0.4;
+
+  // Flash timer
+  if (flashTimer > 0) {
+    flashTimer -= dt;
+    if (flashTimer <= 0 && flashSaved !== null) {
+      tutorialEl.innerHTML = flashSaved;
+      flashSaved = null;
+    }
+  }
+
+  if (state.started && !state.ended) {
+    updatePlayer(dt);
+    updateCoins(dt);
+    updateGuards(dt);
+    advanceTutorial();
+  }
+  updateCamera(dt);
+  updateAsh(dt);
+
+  renderer.render(scene, camera);
+}
+
+// Position camera initially behind player
+camera.position.set(player.position.x, player.position.y + 3.2, player.position.z + 6.5);
+camera.lookAt(player.position.x, player.position.y + 1.3, player.position.z);
+
+loop();
+
+// ---------- TITLE / START ----------
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('title').style.display = 'none';
+  state.started = true;
+  setTutorial(TUTORIAL_STEPS[0].text);
+  setObjective(TUTORIAL_STEPS[0].objective);
+});
+
+</script>
+</body>
+</html>
